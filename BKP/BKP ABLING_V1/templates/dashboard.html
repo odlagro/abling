@@ -1,0 +1,42 @@
+
+{% extends "base.html" %}
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">Abling</a>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('pedidos') }}">Pedidos</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('setup') }}">Configurar .env</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('debug_env') }}">Diagnóstico</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<main class="container py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <h1 class="h3 mb-3">Dashboard</h1>
+  <div class="alert alert-{{ 'success' if env_ready else 'warning' }}">
+    Credenciais carregadas. <a href="{{ url_for('debug_env') }}" class="alert-link">Ver diagnóstico</a>.
+    <small class="d-block mt-1">Enviar <code>redirect_uri</code>: <strong>{{ 'Sim' if send_redirect else 'Não' }}</strong></small>
+  </div>
+
+  <div class="card bg-black border-secondary">
+    <div class="card-body">
+      <h5 class="card-title">Pedidos de venda</h5>
+      <p class="card-text">Liste pedidos do Bling. O filtro padrão é <span class="badge bg-info">Em aberto</span>.</p>
+      <a href="{{ url_for('pedidos') }}" class="btn btn-primary">Ver pedidos</a>
+    </div>
+  </div>
+</main>
+{% endblock %}

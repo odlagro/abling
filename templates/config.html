@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card" style="max-width:720px; margin:0 auto;">
+  <h2 class="kpi-label" style="margin-bottom:10px;">Configurações — Análise de Vendas</h2>
+  <p class="muted" style="margin-bottom:16px;">
+    Informe abaixo a URL da planilha do Google Sheets que contém a análise de vendas.<br>
+    Exemplo:
+    <code style="font-size:12px;">
+      https://docs.google.com/spreadsheets/d/1KubgIw_S6pwPK75XUGnec74W9CjshWYZ8TcYWl6Ff64/edit?gid=821374399#gid=821374399
+    </code>
+  </p>
+
+  <form method="post" class="form">
+    <div style="margin-bottom:12px;">
+      <label for="analysis_sheet_url">URL da planilha de análise de vendas</label>
+      <input type="url"
+             id="analysis_sheet_url"
+             name="analysis_sheet_url"
+             value="{{ analysis_sheet_url or '' }}"
+             placeholder="Cole aqui a URL completa da planilha"
+             style="width:100%;">
+    </div>
+
+    <div style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+      <button class="btn primary" type="submit">Salvar</button>
+      <a href="{{ url_for('index') }}" class="btn">Voltar</a>
+      {% if analysis_sheet_url %}
+        <span class="muted" style="font-size:12px;">Atual: {{ analysis_sheet_url }}</span>
+      {% endif %}
+    </div>
+  </form>
+</section>
+
+{% endblock %}

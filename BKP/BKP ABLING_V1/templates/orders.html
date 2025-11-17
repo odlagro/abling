@@ -1,0 +1,136 @@
+
+{% extends "base.html" %}
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">Abling</a>
+  </div>
+</nav>
+<main class="container py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="d-flex align-items-center justify-content-between">
+    <h1 class="h4 mb-3">Pedidos de venda</h1>
+    <form class="d-flex" method="get" action="{{ url_for('pedidos') }}">
+      <input type="hidden" name="pagina" value="{{ pagina }}">
+      <input type="hidden" name="limite" value="{{ limite }}">
+      <div class="input-group">
+        <label class="input-group-text" for="status">Status</label>
+        <select class="form-select" name="status" id="status" onchange="this.form.submit()">
+          {% set options = ['Em aberto','Em digitação','Em andamento','Atendido','Cancelado'] %}
+          {% for opt in options %}
+            <option value="{{ opt }}" {% if opt|lower == status|lower %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-dark table-striped align-middle">
+      <thead><tr><th style="width:36px"></th><th>Data</th><th>Nº Pedido</th><th>Cliente</th><th>Vendedor</th><th>Situação</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for p in pedidos %}
+          {% set pid = (p.id if p.id is defined else p.get('id')) | string %}
+          {% set contato = p.contato if p.contato is defined else p.get('contato') %}
+          {% set sit = p.situacao if p.situacao is defined else p.get('situacao') %}
+          {% set s1 = sit.nome if sit and sit.nome is defined else None %}
+          {% set s2 = sit.descricao if sit and sit.descricao is defined else None %}
+          {% set s3 = sit.descricaoSituacao if sit and sit.descricaoSituacao is defined else None %}
+          {% set s = s1 or s2 or s3 or (sit if sit is string else None) %}
+          <tr>
+            <td>
+              <button class="btn btn-sm btn-outline-info toggle-items" data-pedido-id="{{ pid }}">»</button>
+            </td>
+            <td>{{ p.data or p.get('data') }}</td>
+            <td>{{ p.numero or p.get('numero') }}</td>
+            <td>{{ contato.nome if contato and contato.nome is defined else (contato.get('nome') if contato else '-') }}</td>
+            <td><span class="vendedor" data-pedido-id="{{ pid }}" data-needs-fetch="{{ 1 if (p.__seller_name is not defined) or (p.__seller_name == None) or (p.__seller_name == '-') else 0 }}">{{ p.__seller_name if p.__seller_name is defined and p.__seller_name != '-' else 'carregando...' }}</span></td>
+            <td><span class="badge bg-info">{{ s or '-' }}</span></td>
+            <td>R$ {{ '%.2f'|format(p.total)|replace('.',',') if p.total is defined else '-' }}</td>
+          </tr>
+          <tr class="items-row d-none" id="items-{{ pid }}"><td></td><td colspan="6">
+            <div class="p-2 bg-black border border-secondary rounded">
+              <div class="items-loading small text-secondary">Carregando itens...</div>
+              <div class="items-container"></div>
+            </div>
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+// Vendedores: busca em lote
+document.addEventListener('DOMContentLoaded', function(){
+  const unresolved = Array.from(document.querySelectorAll('span.vendedor[data-pedido-id][data-needs-fetch="1"]'));
+  if (unresolved.length){
+    const ids = unresolved.map(el => el.getAttribute('data-pedido-id')).filter(Boolean);
+    const chunk = (arr,n) => arr.reduce((a,_,i)=> (i%n? a[a.length-1].push(arr[i]) : a.push([arr[i]]), a), []);
+    const groups = chunk(ids, 12);
+    const fetchGroup = g => fetch('/pedidos/vendedores?ids=' + g.join(','))
+      .then(r => r.json()).then(j => {
+        if (!j || !j.ok) return;
+        const map = j.data || {};
+        for (const id of g){
+          const name = map[id] || '-';
+          const cell = document.querySelector('span.vendedor[data-pedido-id="'+id+'"]');
+          if (cell){
+            cell.textContent = name;
+            cell.setAttribute('data-needs-fetch', '0');
+          }
+        }
+      }).catch(()=>{});
+    (async () => { for (const g of groups){ await fetchGroup(g); } })();
+  }
+
+  // Itens inline (toggle)
+  document.querySelectorAll('.toggle-items').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-pedido-id');
+      const row = document.getElementById('items-' + id);
+      if (!row) return;
+      row.classList.toggle('d-none');
+      if (!row.classList.contains('d-none')){
+        const container = row.querySelector('.items-container');
+        const loading = row.querySelector('.items-loading');
+        if (!container.dataset.loaded){
+          loading.style.display = 'block';
+          try{
+            const r = await fetch('/pedido/' + id + '/itens');
+            const j = await r.json();
+            loading.style.display = 'none';
+            container.dataset.loaded = '1';
+            if (j && j.ok){
+              if (!j.data || !j.data.length){
+                container.innerHTML = '<div class="text-secondary small">Sem itens.</div>';
+              }else{
+                const lines = j.data.map(it => 
+                  `<tr><td>${it.codigo || ''}</td><td>${it.descricao || ''}</td><td>${it.quantidade || ''}</td><td>${it.valor_unit || ''}</td><td>${it.valor_total || ''}</td></tr>`
+                ).join('');
+                container.innerHTML = `<div class="table-responsive"><table class="table table-sm table-dark"><thead><tr><th>Código</th><th>Descrição</th><th>Qtd</th><th>Vlr unit</th><th>Total</th></tr></thead><tbody>${lines}</tbody></table></div>`;
+              }
+            }else{
+              container.innerHTML = '<div class="text-danger small">Falha ao carregar itens.</div>';
+            }
+          }catch(e){
+            loading.style.display = 'none';
+            container.innerHTML = '<div class="text-danger small">Erro de rede.</div>';
+          }
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

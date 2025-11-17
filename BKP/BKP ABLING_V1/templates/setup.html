@@ -1,0 +1,52 @@
+
+{% extends "base.html" %}
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">Abling</a>
+  </div>
+</nav>
+<main class="container py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <h1 class="h4 mb-3">Configurar .env</h1>
+  <form method="post" class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">BLING_CLIENT_ID</label>
+      <input name="client_id" class="form-control" value="{{ client_id }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">BLING_CLIENT_SECRET</label>
+      <input name="client_secret" class="form-control" value="{{ client_secret }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">BLING_REDIRECT_URI</label>
+      <input name="redirect_uri" class="form-control" value="{{ redirect_uri }}">
+      <div class="form-text">Use exatamente o mesmo valor configurado no app do Bling.</div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">FLASK_SECRET_KEY</label>
+      <input name="flask_secret" class="form-control" value="{{ flask_secret }}">
+    </div>
+    <div class="col-12">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="send_redirect" id="sr" {% if send_redirect %}checked{% endif %}>
+        <label class="form-check-label" for="sr">Enviar redirect_uri na URL do authorize</label>
+      </div>
+    </div>
+    <div class="col-12">
+      <button class="btn btn-primary">Salvar</button>
+      <a class="btn btn-secondary" href="{{ url_for('dashboard') }}">Voltar</a>
+    </div>
+  </form>
+</main>
+{% endblock %}

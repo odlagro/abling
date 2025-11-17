@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="info muted">(por padrão mostra os pedidos dos últimos 3 dias)</section>
+
+<section class="cards-row">
+  <div class="card kpi">
+    <div class="kpi-label">Total de pedidos exibidos</div>
+    <div class="kpi-value">{{ totais.qtd_pedidos }}</div>
+    <div class="kpi-sub">Período: {{ periodo.ini }} — {{ periodo.fim }}</div>
+  </div>
+  <div class="card kpi">
+    <div class="kpi-label">Valor total</div>
+    <div class="kpi-value">{{ totais.valor_produtos|brl }}</div>
+  </div>
+</section>
+
+{% if vendor_panels and vendor_panels|length > 0 %}
+<section class="cards-row">
+  {% for d in vendor_panels %}
+  <div class="card" style="min-width:0">
+    <div class="kpi-label" style="margin-bottom:6px">Totais por vendedor — {{ d.dia_label }}</div>
+    <table class="items center">
+      <thead>
+        <tr><th>Vendedor</th><th>Qtde</th><th>Valor</th></tr>
+      </thead>
+      <tbody>
+        {% for v in d.vendedores %}
+        <tr>
+          <td>{{ v.nome }}</td>
+          <td>{{ v.qtd }}</td>
+          <td>{{ v.valor|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th style="text-align:left">TOTAL DO DIA</th>
+          <th>{{ d.total_qtd }}</th>
+          <th>{{ d.total_valor|brl }}</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card">
+  <form method="get" class="filters">
+    <div>
+      <label>Situação</label>
+      <input type="text" name="situacao" placeholder="ex.: 'Em aberto'" value="{{ filtros.situacao }}"/>
+    </div>
+    <div>
+      <label>Data inicial</label>
+      <input type="date" name="data_ini" value="{{ filtros.data_ini }}"/>
+    </div>
+    <div>
+      <label>Data final</label>
+      <input type="date" name="data_fim" value="{{ filtros.data_fim }}"/>
+    </div>
+    <div class="actions"><button class="btn primary" type="submit">Aplicar filtros</button></div>
+  </form>
+</section>
+
+{% for p in pedidos %}
+<section class="card order">
+  <div class="order-head">
+    <div><span class="pill">#{{ p._numero }}</span></div>
+    <div>
+      <div class="muted">Data</div>
+      <strong>{{ p._data_emissao_br or '-' }}</strong>
+    </div>
+    <div>
+      <div class="muted">Status</div>
+      <strong>{{ p._situacao_display }}</strong>
+    </div>
+    <div>
+      <div class="muted">Vendedor</div>
+      <strong>{{ p._vendedor_display }}</strong>
+    </div>
+    <!-- NOVO: Frete antes do Total -->
+    <div>
+      <div class="muted">Frete</div>
+      <strong>{{ (p._frete or 0)|brl }}</strong>
+    </div>
+    <!-- NOVO: rótulo Total acima do valor -->
+    <div style="text-align:right">
+      <div class="muted">Total</div>
+      <strong>{{ (p.total or 0)|brl }}</strong>
+    </div>
+    <div class="actions-end">
+      <button class="btn link toggle" data-target="#itens-{{ p._numero }}">Ocultar / Mostrar produtos</button>
+    </div>
+  </div>
+
+  <div class="order-customer">{{ (p.contato or {}).get('nome') or '-' }}</div>
+
+  {% if p._obs or p._obs_int %}
+  <!-- NOVO: destaque em rosa claro quando tiver Observações -->
+  <div class="order-notes" style="background:#f8f8f55b; border-radius:10px; padding:10px;">
+    {% if p._obs %}<div><span class="muted">Observações:</span> {{ p._obs }}</div>{% endif %}
+    {% if p._obs_int %}<div><span class="muted">Observações internas:</span> {{ p._obs_int }}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if p._parcelas and p._parcelas|length > 0 %}
+  <div class="order-parcelas soft">
+    <div class="muted title">Parcelas</div>
+    <table class="items center">
+      <thead><tr><th>Vencimento</th><th>Valor</th><th>Obs</th><th>FormaPag</th></tr></thead>
+      <tbody>
+        {% for par in p._parcelas %}
+        <tr>
+          <td>{{ par.dataVencimento or '-' }}</td>
+          <td>{{ par.valor|brl }}</td>
+          <td>{{ par.observacoes }}</td>
+          <td>{{ par.formaPagamentoDesc or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="order-body" id="itens-{{ p._numero }}">
+  {% if p.itens_norm and p.itens_norm|length > 0 %}
+    <table class="items">
+      <thead><tr><th>#</th><th>Produto</th><th>SKU</th><th>Qtde</th><th>Preço</th></tr></thead>
+      <tbody>
+        {% for item in p.itens_norm %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ item._nome }}</td>
+          <td>{{ item._sku }}</td>
+          <td>{{ item._qtd }}</td>
+          <td>{{ item._preco|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">Sem itens informados para este pedido.</p>
+  {% endif %}
+  </div>
+</section>
+{% endfor %}
+
+{% if pedidos|length == 0 %}
+<section class="card"><p>Nenhum pedido encontrado.</p></section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="btn btn-outline-light btn-sm mb-3" href="{{ url_for('pedidos') }}">« Voltar aos pedidos</a>
+
+<div class="card bg-black text-light border-secondary mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center">
+      <h1 class="h4 mb-0">Pedido #{{ pedido.numero }} <small class="text-secondary">ID {{ pedido.id }}</small></h1>
+      {% if pedido.situacao %}<span class="badge bg-info">{{ pedido.situacao }}</span>{% endif %}
+    </div>
+    <div class="row mt-3">
+      <div class="col-md-3"><small class="text-secondary">Data</small><div>{{ pedido.data or '-' }}</div></div>
+      <div class="col-md-5"><small class="text-secondary">Cliente</small><div>{{ pedido.cliente or '-' }}</div></div>
+      <div class="col-md-2"><small class="text-secondary">Total</small><div>R$ {{ '%.2f'|format(pedido.total)|replace('.',',') if pedido.total else '-' }}</div></div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h5 mb-2">Itens</h2>
+<div class="table-responsive">
+  <table class="table table-dark table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Descrição</th>
+        <th class="text-end">Qtd</th>
+        <th class="text-end">Vlr Unit</th>
+        <th class="text-end">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if itens and itens|length > 0 %}
+        {% for it in itens %}
+        <tr>
+          <td>{{ it.codigo or '-' }}</td>
+          <td>{{ it.descricao or '-' }}</td>
+          <td class="text-end">{{ it.quantidade or '-' }}</td>
+          <td class="text-end">
+            {% if it.valor_unit is not none %}R$ {{ '%.2f'|format(it.valor_unit)|replace('.',',') }}{% else %}-{% endif %}
+          </td>
+          <td class="text-end">
+            {% if it.valor_total is not none %}R$ {{ '%.2f'|format(it.valor_total)|replace('.',',') }}{% else %}-{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="5" class="text-center text-secondary">Nenhum item encontrado neste pedido.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<details class="mt-4">
+  <summary class="text-info">Ver JSON completo do pedido (debug)</summary>
+  <pre class="bg-black text-light p-3 border border-secondary rounded" style="white-space: pre-wrap;">{{ bruto | tojson(indent=2) }}</pre>
+</details>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% for p in pedidos %}
+  <div class="pedido-card">
+    <div class="pedido-top">
+      <div class="pedido-id-pill">#{{ p.numero }}</div>
+      <div class="pedido-meta">
+        <div><span class="lbl">Data</span> <span class="val">{{ p.data | date_br }}</span></div>
+        <div><span class="lbl">Status</span> <span class="val">{{ p.situacao_desc or p.situacao }}</span></div>
+        <div><span class="lbl">Vendedor</span> <span class="val">{{ p.vendedor_nome or '-' }}</span></div>
+      </div>
+      <div class="pedido-total">
+        <div class="lbl">Total:</div>
+        <div class="val">{{ p.total | brl }}</div>
+      </div>
+    </div>
+    <div class="pedido-toolbar">
+      <button class="btn-toggle" data-target="#itens-{{ p.numero }}">Ocultar / Mostrar produtos</button>
+    </div>
+    <div id="itens-{{ p.numero }}" class="pedido-itens">
+      <table class="tabela-itens">
+        <thead>
+          <tr>
+            <th class="col-ord">#</th>
+            <th class="col-prod">Produto</th>
+            <th class="col-sku">SKU</th>
+            <th class="col-qtd">Qtde</th>
+            <th class="col-preco">Preço</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for i, item in enumerate(p.itens, start=1) %}
+          <tr>
+            <td class="col-ord">{{ i }}</td>
+            <td class="col-prod">{{ item.descricao }}</td>
+            <td class="col-sku">{{ item.sku }}</td>
+            <td class="col-qtd">{{ item.quantidade }}</td>
+            <td class="col-preco">{{ item.preco | brl }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if p.parcelas and p.parcelas|length > 0 %}
+      <div class="parcelas-bloco">
+        <div class="parc-title">Parcelas</div>
+        <div class="parc-rows">
+          {% for parc in p.parcelas %}
+            <div class="parc-row">
+              <div><b>Vencimento:</b> {{ parc.dataVencimento | date_br }}</div>
+              <div><b>Valor:</b> {{ parc.valor | brl }}</div>
+              <div><b>Obs:</b> {{ parc.observacoes or '-' }}</div>
+              <div><b>FormaPag:</b> {{ parc.formaPagamento_nome or parc.formaPagamento_id }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endfor %}

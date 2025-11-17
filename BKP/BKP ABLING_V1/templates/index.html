@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="card bg-secondary-subtle mb-3">
+  <div class="card-body py-2">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fs-5 fw-semibold">Pedidos Bling</div>
+      <div class="badge {{ 'text-bg-success' if connected else 'text-bg-secondary' }}">FONTE: API ({{ 'conectado' if connected else 'desconectado' }})</div>
+      <div class="ms-auto d-flex gap-2">
+        <a href="{{ url_for('auth') }}" class="btn btn-sm btn-primary">Reconectar</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">Desconectar</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form class="row g-2 align-items-end mb-3 small" method="get">
+  <div class="col-auto">
+    <label for="status_id" class="form-label mb-0">Situação</label>
+    <select class="form-select form-select-sm" id="status_id" name="status_id" onchange="this.form.submit()">
+      <option value="" {{ 'selected' if not status_id }}>Todos</option>
+      {% for sid, snome in situ_map.items() %}
+        <option value="{{ sid }}" {% if status_id and status_id|int == sid %}selected{% endif %}>{{ snome }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto text-muted-foreground">
+    (por padrão mostra os pedidos dos últimos 3 dias)
+  </div>
+</form>
+
+{% if api_failed %}
+  <div class="alert alert-warning small" role="alert">
+    <strong>API falhou.</strong> Detalhe: {{ api_error_detail }}
+  </div>
+{% endif %}
+
+<div class="row g-2 mb-2 small">
+  <div class="col-auto"><strong>Total de pedidos exibidos:</strong> {{ total_pedidos }}</div>
+  <div class="col-auto"><strong>Valor total:</strong> {{ valor_total|currency }}</div>
+  <div class="col-auto text-muted-foreground"><strong>Período:</strong> {{ date_from|fmt_date }} — {{ date_to|fmt_date }}</div>
+</div>
+
+{% if total_pedidos == 0 %}
+  <div class="alert alert-info small">Nenhum pedido encontrado para a situação selecionada.</div>
+{% endif %}
+
+{% for p in pedidos %}
+  <div class="card bg-body-tertiary mb-3 shadow-sm">
+    <div class="card-body py-2">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge text-bg-secondary">#{{ p.numero }}</span>
+          <div>
+            <div class="fw-semibold">{{ p.cliente_nome }}</div>
+            <div class="text-muted-foreground">
+              Data: {{ p.data|fmt_date }} • Status: {{ p.status_nome or (situ_map.get(p.status_id|int) if p.status_id is not none else '—') }}
+            </div>
+            <div class="text-muted-foreground">
+              {% if p.vendedor_nome and p.vendedor_nome != 'Sem nome' %}
+                Vendedor: {{ p.vendedor_nome }}
+              {% elif p.vendedor_id %}
+                Vendedor: idVendedor {{ p.vendedor_id }}
+              {% else %}
+                Vendedor: Sem nome
+              {% endif %}
+              {% if p.vendedor_id and p.vendedor_nome and p.vendedor_nome != 'Sem nome' %}
+                <span class="ms-2 badge rounded-pill text-bg-dark">ID: {{ p.vendedor_id }}</span>
+              {% endif %}
+            </div>
+            {% if p.vendedor_label and not p.vendedor_id %}
+              <div class="small text-info">Debug vendedor: {{ p.vendedor_label }}</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="fw-bold fs-6">{{ p.total|currency }}</div>
+        <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#itens-{{ p.id }}">
+          Ocultar / Mostrar produtos
+        </button>
+      </div>
+    </div>
+
+    <div class="collapse show" id="itens-{{ p.id }}">
+      <div class="table-responsive">
+        <table class="table table-dark table-sm mb-0">
+          <thead>
+            <tr>
+              <th class="col-1">#</th>
+              <th>Produto</th>
+              <th>SKU</th>
+              <th class="col-1">Qtde</th>
+              <th class="col-1">Preço</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if p.itens and p.itens|length>0 %}
+              {% for it in p.itens %}
+                <tr>
+                  <td>{{ it.n }}</td>
+                  <td>{{ it.nome }}</td>
+                  <td>{{ it.sku }}</td>
+                  <td>{{ it.quantidade }}</td>
+                  <td>{{ it.preco|currency }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="5" class="text-center text-muted small">Sem itens ou limite da API atingido.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+{% endblock %}

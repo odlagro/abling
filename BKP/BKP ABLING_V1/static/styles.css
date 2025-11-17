@@ -1,0 +1,10 @@
+body, .table, .form-select, .btn, .card, .alert { font-size: 0.925rem; }
+.table-dark {
+  --bs-table-bg: #1f1f1f;
+  --bs-table-striped-bg: #232323;
+  --bs-table-striped-color: #e2e2e2;
+  --bs-table-hover-bg: #2b2b2b;
+  color: #eaeaea;
+}
+.text-muted-foreground { color: #a0a0a0 !important; }
+.badge { font-size: 0.75rem; }

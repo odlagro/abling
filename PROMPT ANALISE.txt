@@ -1,0 +1,20 @@
+1) Criar menu configuraçãoes onde irei salvar o link da planilha de analise de vendas.
+
+https://docs.google.com/spreadsheets/d/1KubgIw_S6pwPK75XUGnec74W9CjshWYZ8TcYWl6Ff64/edit?gid=821374399#gid=821374399
+
+
+2) Criar botão Buscar Analíse: ao clicar nesse botão,pedido por pedido, o sistema irá buscar na planilha de analise de vendas cadastrada em configurações,pelo numero do pedido, na coluna D e irá exibir no pedido a margem de lucro apresentada na coluna T da planilha.
+
+
+local: Coluna F
+Venda: Coluna G
+Custo: coluna H
+Frete Rec.: Coluna K
+Frete Env.: coluna L
+Tarifa: Coluna N
+Lucro liq.: Coluna S
+
+
+
+
+

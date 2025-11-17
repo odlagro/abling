@@ -1,0 +1,881 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="info muted">(por padrão mostra os pedidos dos últimos 3 dias)</section>
+
+<!-- AÇÕES GERAIS: CONFIGURAÇÕES + BUSCAR ANÁLISE -->
+<section class="card" style="padding:10px 14px; margin-bottom:10px;">
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <a href="{{ url_for('config_view') }}" class="btn primary">Configurações</a>
+    <a href="{{ buscar_analise_url }}" class="btn">Buscar Análise</a>
+    {% if buscar_analise %}
+      <span class="muted" style="font-size:12px;">Análises carregadas (quando encontradas na planilha).</span>
+    {% endif %}
+  </div>
+</section>
+
+{% if vendor_panels and vendor_panels|length > 0 %}
+<section class="card" style="padding:10px 14px; margin-bottom:10px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <div class="kpi-label" style="font-size:16px; font-weight:700;">
+      <span class="js-toggle-dash" data-target="#dashboard-panels" style="cursor:pointer; text-decoration:underline;">
+        Dashboard
+      </span>
+    </div>
+
+    <div style="
+        font-size:12px; color:#cfd3d7; background:#0e1216;
+        border:1px solid rgba(255,255,255,.08); padding:4px 8px;
+        border-radius:10px; white-space:nowrap;">
+      atualizado {{ last_updated }}
+    </div>
+  </div>
+</section>
+
+<!-- ==================================== -->
+<!--   GRÁFICO DE VENDAS DIÁRIAS DO MÊS   -->
+<!-- ==================================== -->
+
+<section class="card" style="padding:14px; margin-bottom:14px;">
+  <div class="kpi-label" style="font-size:16px; font-weight:700; margin-bottom:10px;">
+    Vendas Diárias — mês {{ month_day_panel.mes_label }}
+  </div>
+
+  <canvas id="chartVendasDia" height="120"></canvas>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    let labels = JSON.parse(`{{ graf_labels_json | safe }}`);
+    let values = JSON.parse(`{{ graf_values_json | safe }}`);
+
+    const ctx = document.getElementById('chartVendasDia').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Vendas (R$)",
+                data: values,
+                borderColor: "#4ade80",
+                backgroundColor: "rgba(74, 222, 128, 0.25)",
+                tension: 0.35,
+                borderWidth: 2,
+                pointRadius: 4,
+                pointBackgroundColor: "#4ade80",
+                pointHoverRadius: 5,
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    ticks: {
+                        color: "#e5e7eb",
+                        callback: function (v) {
+                            return "R$ " + v.toLocaleString("pt-BR");
+                        }
+                    },
+                    grid: { color: "rgba(255,255,255,0.08)" }
+                },
+                x: {
+                    ticks: { color: "#e5e7eb" },
+                    grid: { color: "rgba(255,255,255,0.05)" }
+                }
+            }
+        }
+    });
+
+});
+</script>
+
+<div id="dashboard-panels" style="display:block;">
+  <!-- ====== 3 últimos dias com ZOOM por vendedor ====== -->
+  {% for row in vendor_panels|batch(3, None) %}
+  <section class="cards-row">
+    {% for d in row %}
+      {% if d %}
+      <div class="card" style="min-width:0">
+        <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700;">
+          {{ d.dia_label }}
+        </div>
+        <table class="items center">
+          <thead>
+            <tr>
+              <th style="text-align:right">Vendedor</th>
+              <th>Qtde</th>
+              <th style="text-align:right">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in d.vendedores %}
+            <tr>
+              <td style="text-align:right; white-space:nowrap;">
+                <span style="margin-right:6px;">{{ v.nome }}</span>
+                <button class="js-toggle-dv"
+                        data-target="#{{ v.detail_id }}"
+                        title="Ver pedidos" aria-label="Ver pedidos"
+                        style="vertical-align:middle; border:none; background:transparent; cursor:pointer; padding:0;">
+                  {% set lens = '#ff6b6b' if v.has_cancelled else '#fff' %}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                       xmlns="http://www.w3.org/2000/svg" style="opacity:.95">
+                    <circle cx="11" cy="11" r="7" stroke="{{ lens }}" stroke-width="2"/>
+                    <line x1="20" y1="20" x2="16.65" y2="16.65" stroke="{{ lens }}" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </td>
+              <td>{{ v.qtd }}</td>
+              <td style="text-align:right">{{ v.valor|brl }}</td>
+            </tr>
+            <tr id="{{ v.detail_id }}" class="dv-details" style="display:none;">
+              <td colspan="3" style="padding:0;">
+                <div class="soft" style="padding:10px 6px;">
+                  {% if v.details and v.details|length > 0 %}
+                  <table class="items">
+                    <thead>
+                      <tr><th># Pedido</th><th>Data</th><th style="text-align:right">Total</th></tr>
+                    </thead>
+                    <tbody>
+                      {% for it in v.details %}
+                      <tr {% if it.sid == 12 %} style="color:#ff6b6b; font-weight:600;" {% endif %}>
+                        <td>{{ it.numero }}</td>
+                        <td>{{ it.data }}</td>
+                        <td style="text-align:right">{{ it.total|brl }}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                  {% else %}
+                    <div class="muted">Sem pedidos.</div>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th style="text-align:left">TOTAL DO DIA</th>
+              <th>{{ d.total_qtd }}</th>
+              <th style="text-align:right">{{ d.total_valor|brl }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% else %}
+      <div class="card" style="min-width:0; opacity:.35;">
+        <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700;">—</div>
+        <div class="muted">Sem dados</div>
+      </div>
+      {% endif %}
+    {% endfor %}
+  </section>
+  {% endfor %}
+
+  <!-- Linha de painéis extras -->
+  <section class="cards-row">
+
+    <!-- Painel 1: Status do mês -->
+    <div class="card" style="min-width:0;">
+      <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700;">
+        Status — mês {{ month_status_panel.mes_label }}
+      </div>
+
+      <table class="items center">
+        <thead>
+          <tr>
+            <th style="text-align:right">Status</th>
+            <th>Qtde</th>
+            <th style="text-align:right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in month_status_panel.status_list %}
+          <tr>
+            <td style="text-align:right; white-space:nowrap;">
+              <span style="margin-right:6px;">{{ s.status }}</span>
+              <button class="js-toggle-status"
+                      data-target="#st-{{ s.sid }}"
+                      title="Ver pedidos" aria-label="Ver pedidos"
+                      style="vertical-align:middle; border:none; background:transparent; cursor:pointer; padding:0;">
+                {% set lens_color = '#ff6b6b' if s.sid == 12 else '#fff' %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     xmlns="http://www.w3.org/2000/svg" style="opacity:.95">
+                  <circle cx="11" cy="11" r="7" stroke="{{ lens_color }}" stroke-width="2"/>
+                  <line x1="20" y1="20" x2="16.65" y2="16.65" stroke="{{ lens_color }}" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </td>
+            <td>{{ s.qtd }}</td>
+            <td style="text-align:right">{{ s.valor|brl }}</td>
+          </tr>
+
+          <tr id="st-{{ s.sid }}" class="status-details" style="display:none;">
+            <td colspan="3" style="padding:0%;">
+              <div class="soft" style="padding:10px 6px;">
+                {% set lst = month_status_panel.details_by_status.get(s.sid, []) %}
+                {% if lst and lst|length > 0 %}
+                <table class="items">
+                  <thead>
+                    <tr><th># Pedido</th><th>Data</th><th style="text-align:right">Total</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for it in lst %}
+                    <tr {% if s.sid == 12 %} style="color:#ff6b6b; font-weight:600;" {% endif %}>
+                      <td>{{ it.numero }}</td>
+                      <td>{{ it.data }}</td>
+                      <td style="text-align:right">{{ it.total|brl }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                  <div class="muted">Sem pedidos neste status.</div>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th style="text-align:right">TOTAL DO MÊS</th>
+            <th>{{ month_status_panel.total_qtd }}</th>
+            <th style="text-align:right">{{ month_status_panel.total_valor|brl }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <!-- Painel 2: Ranking de vendedores -->
+    <div class="card" style="min-width:0;">
+      <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700;">
+        Ranking de Vendedores — {{ month_vendor_panel.mes_label }} - Pedidos Ativos
+      </div>
+
+      <table class="items center">
+        <thead>
+          <tr>
+            <th style="text-align:right">Vendedor</th>
+            <th>Qtde</th>
+            <th style="text-align:right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in month_vendor_panel.vendors_list %}
+          <tr>
+            <td style="text-align:right; white-space:nowrap;">
+              <span style="margin-right:6px;">{{ v.vendedor }}</span>
+              <button class="js-toggle-vendor"
+                      data-target="#vd-{{ loop.index }}"
+                      title="Ver pedidos" aria-label="Ver pedidos"
+                      style="vertical-align:middle; border:none; background:transparent; cursor:pointer; padding:0%;">
+                {% set lens = '#ff6b6b' if v.has_cancelled else '#fff' %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     xmlns="http://www.w3.org/2000/svg" style="opacity:.95">
+                  <circle cx="11" cy="11" r="7" stroke="{{ lens }}" stroke-width="2"/>
+                  <line x1="20" y1="20" x2="16.65" y2="16.65" stroke="{{ lens }}" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </td>
+            <td>{{ v.qtd }}</td>
+            <td style="text-align:right">{{ v.valor|brl }}</td>
+          </tr>
+
+          <tr id="vd-{{ loop.index }}" class="vendor-details" style="display:none;">
+            <td colspan="3" style="padding:0%;">
+              <div class="soft" style="padding:10px 6px;">
+                {% set lst = month_vendor_panel.details_by_vendor.get(v.vendedor, []) %}
+                {% if lst and lst|length > 0 %}
+                <table class="items">
+                  <thead>
+                    <tr><th># Pedido</th><th>Data</th><th style="text-align:right">Total</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for it in lst %}
+                    <tr {% if it.sid == 12 %} style="color:#ff6b6b; font-weight:600;" {% endif %}>
+                      <td>{{ it.numero }}</td>
+                      <td>{{ it.data }}</td>
+                      <td style="text-align:right">{{ it.total|brl }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                  <div class="muted">Sem pedidos.</div>
+              {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th style="text-align:right">TOTAL DO MÊS</th>
+            <th>{{ month_vendor_panel.total_qtd }}</th>
+            <th style="text-align:right">{{ month_vendor_panel.total_valor|brl }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Painel 3: Dias do mês -->
+    <div class="card" style="min-width:0%;">
+      <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700;">
+        Dias — mês {{ month_day_panel.mes_label }}
+      </div>
+
+      <table class="items center">
+        <thead>
+          <tr>
+            <th style="text-align:right">Dia</th>
+            <th>Qtde</th>
+            <th style="text-align:right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in month_day_panel.days_list %}
+          <tr>
+            <td style="text-align:right; white-space:nowrap;">
+              <span style="margin-right:6px;">{{ d.day_label }}</span>
+              <button class="js-toggle-day"
+                      data-target="#dy-{{ loop.index }}"
+                      title="Ver pedidos" aria-label="Ver pedidos"
+                      style="vertical-align:middle; border:none; background:transparent; cursor:pointer; padding:0%;">
+                {% set lens = '#ff6b6b' if d.has_cancelled else '#fff' %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     xmlns="http://www.w3.org/2000/svg" style="opacity:.95">
+                  <circle cx="11" cy="11" r="7" stroke="{{ lens }}" stroke-width="2"/>
+                  <line x1="20" y1="20" x2="16.65" y2="16.65" stroke="{{ lens }}" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </td>
+            <td>{{ d.qtd }}</td>
+            <td style="text-align:right">{{ d.valor|brl }}</td>
+          </tr>
+
+          <tr id="dy-{{ loop.index }}" class="day-details" style="display:none;">
+            <td colspan="3" style="padding:0%;">
+              <div class="soft" style="padding:10px 6px;">
+                {% set lst = month_day_panel.details_by_day.get(d.day_key, []) %}
+       {% if lst and lst|length > 0 %}
+                <table class="items">
+                  <thead>
+                    <tr><th># Pedido</th><th>Data</th><th style="text-align:right">Total</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for it in lst %}
+                    <tr {% if it.sid == 12 %} style="color:#ff6b6b; font-weight:600;" {% endif %}>
+                      <td>{{ it.numero }}</td>
+                      <td>{{ it.data }}</td>
+                      <td style="text-align:right">{{ it.total|brl }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                  <div class="muted">Sem pedidos no dia.</div>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th style="text-align:right">TOTAL DO MÊS</th>
+            <th>{{ month_day_panel.total_qtd }}</th>
+            <th style="text-align:right">{{ month_day_panel.total_valor|brl }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== PRODUTOS (DIA e MÊS) ===== -->
+
+  <!-- Produtos vendidos HOJE (EM UMA LINHA) -->
+  <section class="cards-row">
+    <div class="card" style="min-width:0%;">
+      <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;">
+        <span>Produtos vendidos — HOJE {{ prod_day_panel.day_label }}</span>
+        <a href="{{ toggle_psd_url }}" class="badge" title="Alternar ordenação (valor/quantidade)"
+           style="font-size:11px; padding:2px 6px; border:1px solid rgba(255,255,255,.18); border-radius:10px; text-decoration:none;">
+          ↑↓
+        </a>
+        <span class="muted" style="font-weight:500;">(ordenado por {{ 'valor' if psd=='valor' else 'quantidade' }})</span>
+      </div>
+
+      <table class="items center">
+        <thead>
+          <tr>
+            <th style="text-align:right">Produto</th>
+            <th>Qtde</th>
+            <th style="text-align:right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pr in prod_day_panel.products_list %}
+          <tr>
+            <td style="text-align:right; white-space:nowrap;">
+              <span style="margin-right:6px;">{{ pr.produto }}</span>
+              <button class="js-toggle-prod-day"
+                      data-target="#prd-{{ loop.index }}"
+                      title="Ver pedidos" aria-label="Ver pedidos"
+                      style="vertical-align:middle; border:none; background:transparent; cursor:pointer; padding:0%;">
+                {% set lens = '#ff6b6b' if pr.has_cancelled else '#fff' %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     xmlns="http://www.w3.org/2000/svg" style="opacity:.95">
+                  <circle cx="11" cy="11" r="7" stroke="{{ lens }}" stroke-width="2"/>
+                  <line x1="20" y1="20" x2="16.65" y2="16.65" stroke="{{ lens }}" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <span class="muted" style="margin-left:8px;">{{ pr.sku }}</span>
+            </td>
+            <td>{{ pr.qtd|int }}</td>
+            <td style="text-align:right">{{ pr.valor|brl }}</td>
+          </tr>
+
+          <tr id="prd-{{ loop.index }}" class="prod-day-details" style="display:none;">
+            <td colspan="3" style="padding:0%;">
+              <div class="soft" style="padding:10px 6px;">
+                {% set lst = prod_day_panel.details_by_product.get((pr.produto, pr.sku), []) %}
+                {% if lst and lst|length > 0 %}
+                <table class="items">
+                  <thead>
+                    <tr><th># Pedido</th><th>Data</th><th style="text-align:right">Qtde Item</th><th style="text-align:right">Valor Item</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for it in lst %}
+                    <tr {% if it.sid == 12 %} style="color:#ff6b6b; font-weight:600;" {% endif %}>
+                      <td>{{ it.numero }}</td>
+                      <td>{{ it.data }}</td>
+                      <td style="text-align:right">{{ it.qtd|int }}</td>
+                      <td style="text-align:right">{{ it.valor|brl }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                  <div class="muted">Sem pedidos para este produto hoje.</div>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th style="text-align:right">TOTAL</th>
+            <th>{{ prod_day_panel.total_qtd|int }}</th>
+            <th style="text-align:right">{{ prod_day_panel.total_valor|brl }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- Produtos vendidos no MÊS (EM OUTRA LINHA) -->
+  <section class="cards-row">
+    <div class="card" style="min-width:0%;">
+      <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px;">
+        <span>Produtos vendidos — mês {{ prod_month_panel.mes_label }}</span>
+        <a href="{{ toggle_psm_url }}" class="badge" title="Alternar ordenação (valor/quantidade)"
+           style="font-size:11px; padding:2px 6px; border:1px solid rgba(255,255,255,.18); border-radius:10px; text-decoration:none;">
+          ↑↓
+        </a>
+        <span class="muted" style="font-weight:500;">(ordenado por {{ 'valor' if psm=='valor' else 'quantidade' }})</span>
+      </div>
+
+      <table class="items center">
+        <thead>
+          <tr>
+            <th style="text-align:right">Produto</th>
+            <th>Qtde</th>
+            <th style="text-align:right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pr in prod_month_panel.products_list %}
+          <tr>
+            <td style="text-align:right; white-space:nowrap;">
+              <span style="margin-right:6px;">{{ pr.produto }}</span>
+              <button class="js-toggle-prod-month"
+                      data-target="#prm-{{ loop.index }}"
+                      title="Ver pedidos" aria-label="Ver pedidos"
+                      style="vertical-align:middle; border:none; background:transparent; cursor:pointer; padding:0%;">
+                {% set lens = '#ff6b6b' if pr.has_cancelled else '#fff' %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     xmlns="http://www.w3.org/2000/svg" style="opacity:.95">
+                  <circle cx="11" cy="11" r="7" stroke="{{ lens }}" stroke-width="2"/>
+                  <line x1="20" y1="20" x2="16.65" y2="16.65" stroke="{{ lens }}" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <span class="muted" style="margin-left:8px;">{{ pr.sku }}</span>
+            </td>
+            <td>{{ pr.qtd|int }}</td>
+            <td style="text-align:right">{{ pr.valor|brl }}</td>
+          </tr>
+
+          <tr id="prm-{{ loop.index }}" class="prod-month-details" style="display:none;">
+            <td colspan="3" style="padding:0%;">
+              <div class="soft" style="padding:10px 6px;">
+                {% set lst = prod_month_panel.details_by_product.get((pr.produto, pr.sku), []) %}
+                {% if lst and lst|length > 0 %}
+                <table class="items">
+                  <thead>
+                    <tr><th># Pedido</th><th>Data</th><th style="text-align:right">Qtde Item</th><th style="text-align:right">Valor Item</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for it in lst %}
+                    <tr {% if it.sid == 12 %} style="color:#ff6b6b; font-weight:600;" {% endif %}>
+                      <td>{{ it.numero }}</td>
+                      <td>{{ it.data }}</td>
+                      <td style="text-align:right">{{ it.qtd|int }}</td>
+                      <td style="text-align:right">{{ it.valor|brl }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                  <div class="muted">Sem pedidos para este produto no mês.</div>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th style="text-align:right">TOTAL</th>
+            <th>{{ prod_month_panel.total_qtd|int }}</th>
+            <th style="text-align:right">{{ prod_month_panel.total_valor|brl }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========= NOVOS PAINÉIS POR FAIXA DE MARGEM ========= -->
+  <section class="cards-row">
+    <!-- Verde > 5% -->
+    <div class="card" style="min-width:0%;">
+      <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700;">
+        Pedidos por margem — VERDE (&gt; 5%)
+      </div>
+      <table class="items center" id="tbl-margem-verde">
+        <thead>
+          <tr>
+            <th style="text-align:right">Pedido</th>
+            <th>Data</th>
+            <th style="text-align:right">Valor</th>
+            <th style="text-align:right">Margem</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- preenchido via JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Vermelho <= 5% e >= 0 -->
+    <div class="card" style="min-width:0%;">
+      <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700;">
+        Pedidos por margem — VERMELHO (≤ 5%)
+      </div>
+      <table class="items center" id="tbl-margem-vermelha">
+        <thead>
+          <tr>
+            <th style="text-align:right">Pedido</th>
+            <th>Data</th>
+            <th style="text-align:right">Valor</th>
+            <th style="text-align:right">Margem</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- preenchido via JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Roxo < 0% -->
+    <div class="card" style="min-width:0%;">
+      <div class="kpi-label" style="margin-bottom:6px; font-size:16px; font-weight:700;">
+        Pedidos por margem — ROXO (&lt; 0%)
+      </div>
+      <table class="items center" id="tbl-margem-roxa">
+        <thead>
+          <tr>
+            <th style="text-align:right">Pedido</th>
+            <th>Data</th>
+            <th style="text-align:right">Valor</th>
+            <th style="text-align:right">Margem</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- preenchido via JS -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+{% endif %}
+
+<section class="card">
+  <form method="get" class="filters">
+    <div>
+      <label>Situação</label>
+      <input type="text" name="situacao" placeholder="ex.: 'Em aberto'" value="{{ filtros.situacao }}"/>
+    </div>
+    <div>
+      <label>Data inicial</label>
+      <input type="date" name="data_ini" value="{{ filtros.data_ini }}"/>
+    </div>
+    <div>
+      <label>Data final</label>
+      <input type="date" name="data_fim" value="{{ filtros.data_fim }}"/>
+    </div>
+    <div class="actions"><button class="btn primary" type="submit">Aplicar filtros</button></div>
+  </form>
+</section>
+
+{% for p in pedidos %}
+<section class="card order"
+         data-pedido="{{ p._numero }}"
+         data-data="{{ p._data_emissao_br or '-' }}"
+         data-total="{{ (p.total or 0)|brl }}">
+  <div class="order-head">
+    <div><span class="pill">#{{ p._numero }}</span></div>
+    <div>
+      <div class="muted">Data</div>
+      <strong>{{ p._data_emissao_br or '-' }}</strong>
+    </div>
+    <div>
+      <div class="muted">Status</div>
+      <strong>{{ p._situacao_display }}</strong>
+    </div>
+    <div>
+      <div class="muted">Vendedor</div>
+      <strong>{{ p._vendedor_display }}</strong>
+    </div>
+    <div>
+      <div class="muted">Frete</div>
+      <strong>{{ (p._frete or 0)|brl }}</strong>
+    </div>
+    <!-- Margem de Lucro vinda da planilha (com destaque por cor) -->
+    <div>
+      <div class="muted">Margem</div>
+      {% if p._margem_lucro is defined %}
+        <strong
+          class="margem-cell"
+          data-margem="{{ p._margem_lucro }}"
+          data-status="{{ p._situacao_display }}"
+        >
+          {{ p._margem_lucro }}
+        </strong>
+      {% else %}
+        <span class="muted">—</span>
+      {% endif %}
+    </div>
+    <div style="text-align:right">
+      <div class="muted">Total</div>
+      <strong>{{ (p.total or 0)|brl }}</strong>
+    </div>
+
+    <div class="actions-end" style="justify-self:end; margin-left:auto;">
+      <button class="btn link js-toggle-pay" data-target="#pag-{{ p._numero }}">Pagamento</button>
+    </div>
+  </div>
+
+  <div class="order-customer">{{ (p.contato or {}).get('nome') or '-' }}</div>
+
+  {% if p._obs or p._obs_int %}
+  <div class="order-notes" style="background:#f8f8f55b; border-radius:10px; padding:10px;">
+    {% if p._obs %}<div><span class="muted">Observações:</span> {{ p._obs }}</div>{% endif %}
+    {% if p._obs_int %}<div><span class="muted">Observações internas:</span> {{ p._obs_int }}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if p._parcelas and p._parcelas|length > 0 %}
+  <div class="order-parcelas soft" id="pag-{{ p._numero }}" style="display:none">
+    <table class="items center">
+      <thead><tr><th>Vencimento</th><th>Valor</th><th>Obs</th><th>FormaPag</th></tr></thead>
+      <tbody>
+        {% for par in p._parcelas %}
+        <tr>
+          <td>{{ par.dataVencimento or '-' }}</td>
+          <td>{{ par.valor|brl }}</td>
+          <td>{{ par.observacoes }}</td>
+          <td>{{ par.formaPagamentoDesc or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="order-body">
+  {% if p.itens_norm and p.itens_norm|length > 0 %}
+    <table class="items">
+      <thead><tr><th>#</th><th>Produto</th><th>SKU</th><th>Qtde</th><th>Preço</th></tr></thead>
+      <tbody>
+        {% for item in p.itens_norm %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ item._nome }}</td>
+          <td>{{ item._sku }}</td>
+          <td>{{ item._qtd|int }}</td>
+          <td>{{ item._preco|brl }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">Sem itens informados para este pedido.</p>
+  {% endif %}
+  </div>
+</section>
+{% endfor %}
+
+{% if pedidos|length == 0 %}
+<section class="card"><p>Nenhum pedido encontrado.</p></section>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  function attachToggle(selector, showAs) {
+    document.querySelectorAll(selector).forEach(function(el){
+      el.addEventListener('click', function(ev){
+        ev.preventDefault();
+        var sel = el.getAttribute('data-target');
+        var target = sel ? document.querySelector(sel) : null;
+        if(!target) return;
+        var cur = (target.style.display || window.getComputedStyle(target).display);
+        target.style.display = (cur === 'none') ? (showAs || 'table-row') : 'none';
+      });
+    });
+  }
+
+  attachToggle('.js-toggle-pay');
+  attachToggle('.js-toggle-dash', 'block');
+  attachToggle('.js-toggle-status', 'table-row');
+  attachToggle('.js-toggle-vendor', 'table-row');
+  attachToggle('.js-toggle-day', 'table-row');
+  attachToggle('.js-toggle-dv', 'table-row');
+  attachToggle('.js-toggle-prod-day', 'table-row');
+  attachToggle('.js-toggle-prod-month', 'table-row');
+
+  // ==== COLORIR CAMPO MARGEM + MONTAR PAINÉIS POR FAIXA ====
+  var tblVerdeBody    = document.querySelector('#tbl-margem-verde tbody');
+  var tblVermelhaBody = document.querySelector('#tbl-margem-vermelha tbody');
+  var tblRoxaBody     = document.querySelector('#tbl-margem-roxa tbody');
+
+  function addMarginRow(targetBody, orderSection, pedido, data, total, margemTxt, detailId) {
+      if (!targetBody) return;
+
+      var tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="text-align:right; white-space:nowrap;">
+          <span style="margin-right:6px;">${pedido}</span>
+          <button class="js-toggle-margem"
+                  data-target="#${detailId}"
+                  title="Ver itens do pedido"
+                  aria-label="Ver itens do pedido"
+                  style="vertical-align:middle; border:none; background:transparent; cursor:pointer; padding:0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 xmlns="http://www.w3.org/2000/svg" style="opacity:.95">
+              <circle cx="11" cy="11" r="7" stroke="#ffffff" stroke-width="2"/>
+              <line x1="20" y1="20" x2="16.65" y2="16.65" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </td>
+        <td>${data}</td>
+        <td style="text-align:right">${total}</td>
+        <td style="text-align:right">${margemTxt}</td>
+      `;
+      targetBody.appendChild(tr);
+
+      var trDet = document.createElement('tr');
+      trDet.id = detailId;
+      trDet.className = 'margem-details';
+      trDet.style.display = 'none';
+
+      var td = document.createElement('td');
+      td.colSpan = 4;
+      td.style.padding = '0';
+
+      var div = document.createElement('div');
+      div.className = 'soft';
+      div.style.padding = '10px 6px';
+
+      var itemsTable = orderSection.querySelector('.order-body table.items');
+      if (itemsTable) {
+          var clone = itemsTable.cloneNode(true);
+          div.appendChild(clone);
+      } else {
+          div.innerHTML = '<div class="muted">Sem itens informados para este pedido.</div>';
+      }
+
+      td.appendChild(div);
+      trDet.appendChild(td);
+      targetBody.appendChild(trDet);
+  }
+
+  document.querySelectorAll('.margem-cell').forEach(function(el){
+      var rawTxt = (el.dataset.margem || el.textContent || '').toString().trim();
+      var status = (el.dataset.status || '').toUpperCase();
+
+      // Se estiver cancelado, pinta de preto e não entra em nenhum painel
+      if (status.indexOf('CANCEL') !== -1) {
+          el.style.color = '#000000'; // PRETO
+          return;
+      }
+
+      // Converter texto da margem em número
+      var raw = rawTxt.replace('%', '').replace(',', '.');
+      var val = parseFloat(raw);
+      if (isNaN(val)) {
+          return;
+      }
+
+      // Definir cor no pedido
+      if (val > 5) {
+          el.style.color = '#22c55e'; // VERDE
+      } else if (val < 0) {
+          el.style.color = '#a855f7'; // ROXO
+      } else {
+          el.style.color = '#ef4444'; // VERMELHO
+      }
+
+      // Montar linha nos painéis por faixa de margem
+      var orderSection = el.closest('section.card.order');
+      if (!orderSection) return;
+
+      var pedido = orderSection.dataset.pedido || '';
+      var data   = orderSection.dataset.data   || '';
+      var total  = orderSection.dataset.total  || '';
+
+      var detailId;
+      if (val > 5) {
+          detailId = 'mgv-' + pedido;
+          addMarginRow(tblVerdeBody, orderSection, pedido, data, total, rawTxt, detailId);
+      } else if (val < 0) {
+          detailId = 'mgr-' + pedido;
+          addMarginRow(tblRoxaBody, orderSection, pedido, data, total, rawTxt, detailId);
+      } else {
+          detailId = 'mgvm-' + pedido;
+          addMarginRow(tblVermelhaBody, orderSection, pedido, data, total, rawTxt, detailId);
+      }
+  });
+
+  // Toggle dos detalhes de margem (itens do pedido)
+  attachToggle('.js-toggle-margem', 'table-row');
+});
+</script>
+
+{% endblock %}

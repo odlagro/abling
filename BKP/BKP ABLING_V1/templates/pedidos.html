@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="pt-br">
+  <head><meta charset="utf-8"><title>Pedidos Bling</title></head>
+  <body>
+    <h1>Pedidos Bling</h1>
+    <div id="app">Carregando…</div>
+    <script>
+      fetch('/api/pedidos').then(r=>r.json()).then(d=>{
+        document.getElementById('app').innerText = JSON.stringify(d,null,2);
+      });
+    </script>
+  </body>
+</html>

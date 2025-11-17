@@ -1,0 +1,1 @@
+document.addEventListener('click',function(ev){const btn=ev.target.closest('.btn-toggle');if(!btn)return;const sel=btn.getAttribute('data-target');const el=document.querySelector(sel);if(el){el.style.display=(el.style.display==='none'?'':'none');}});

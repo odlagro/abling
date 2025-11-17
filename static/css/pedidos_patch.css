@@ -1,0 +1,25 @@
+.pedido-card{background:#0f1620;border:1px solid #1f2a38;border-radius:8px;margin:18px 0;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.pedido-top{display:flex;align-items:center;gap:20px;padding:14px 16px}
+.pedido-id-pill{background:#ffd24d;color:#242526;border-radius:999px;padding:6px 12px;font-weight:700;min-width:72px;text-align:center;box-shadow:inset 0 -1px 0 rgba(0,0,0,.25)}
+.pedido-meta{display:flex;gap:28px;flex-wrap:wrap;align-items:center;color:#cfd8e3;font-size:14px}
+.pedido-meta .lbl{color:#93a4b8;margin-right:6px}
+.pedido-meta .val{color:#e8eef7;font-weight:600}
+.pedido-total{margin-left:auto;display:flex;gap:8px;align-items:center;font-size:16px}
+.pedido-total .lbl{color:#93a4b8}
+.pedido-total .val{color:#fff;font-weight:700}
+.pedido-toolbar{padding:0 16px 10px 16px}
+.btn-toggle{background:#1d4ed8;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+.btn-toggle:hover{background:#1b46c2}
+.pedido-itens{padding:0 12px 12px 12px}
+.tabela-itens{width:100%;border-collapse:collapse;overflow:hidden;border-radius:6px}
+.tabela-itens thead th{background:#111b28;color:#9fb2c9;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.02em;padding:10px 12px;border-bottom:1px solid #1f2a38}
+.tabela-itens tbody td{padding:10px 12px;font-size:14px;color:#e7edf6;border-bottom:1px solid #1b2432}
+.tabela-itens tbody tr:hover{background:#0c121a}
+.col-ord{width:56px;text-align:center;color:#b7c5d9}
+.col-sku{width:160px;color:#c0cde0}
+.col-qtd{width:80px;text-align:center;color:#d8e2f1;font-weight:600}
+.col-preco{width:160px;text-align:right;font-weight:700}
+.parcelas-bloco{border-top:1px dashed #263245;margin:6px 12px 14px 12px;padding-top:10px}
+.parc-title{color:#9fb2c9;font-weight:700;margin-bottom:6px}
+.parc-rows{display:flex;flex-direction:column;gap:6px}
+.parc-row{background:#0c121a;border:1px solid #1b2432;border-radius:6px;padding:8px 10px;display:flex;gap:16px;flex-wrap:wrap;color:#e7edf6}
